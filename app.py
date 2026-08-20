@@ -1,12 +1,7 @@
 import os
 import json
-
-# Schlüssel direkt in die Umgebungsvariablen laden
-os.environ["GEMINI_API_KEY"] = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
-
+import requests
 import streamlit as st
-from google import genai
-from google.genai import types
 from pyswip import Prolog
 
 # ------------------------------------------------------------------------------
@@ -18,10 +13,8 @@ st.set_page_config(
     page_icon="🏛️"
 )
 
-# Client liest den Key automatisch aus os.environ
-@st.cache_resource
-def init_gemini():
-    return genai.Client()
+# API Key festlegen
+API_KEY = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
 
 # SWI-Prolog Engine laden
 @st.cache_resource
@@ -38,9 +31,9 @@ def init_prolog():
 prolog = init_prolog()
 
 # ------------------------------------------------------------------------------
-# 2. NLU-PARSER PROMPT (TEXT-ZU-PROLOG-FAKTEN)
+# 2. NLU-PARSER PER DIREKTEM REST-CALL (UMGEHT SDK-PARSING)
 # ------------------------------------------------------------------------------
-def extract_prolog_facts(client, user_text):
+def extract_prolog_facts(user_text):
     system_prompt = """
 Du bist ein NLU-Parser für ein koranisches Rechts- und Ethik-Logiksystem in Prolog.
 Deine Aufgabe ist es, freien Fließtext zu analysieren und in exakte Prolog-Fakten unseres Vokabulars zu übersetzen.
@@ -65,20 +58,34 @@ Beispiel-Antwort:
   "in_iddah_frist(amina, zaid)"
 ]
 """
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
+    
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": system_prompt}]
+        },
+        "contents": [{
+            "parts": [{"text": user_text}]
+        }],
+        "generationConfig": {
+            "response_mime_type": "application/json",
+            "temperature": 0.1
+        }
+    }
+    
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                temperature=0.1
-            )
-        )
-        facts = json.loads(response.text)
-        return facts
+        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        res_data = response.json()
+        
+        if response.status_code == 200:
+            text_response = res_data['candidates'][0]['content']['parts'][0]['text']
+            facts = json.loads(text_response)
+            return facts
+        else:
+            st.error(f"API-Antwort Fehler ({response.status_code}): {res_data}")
+            return []
     except Exception as e:
-        st.error(f"API-Fehler bei der NLU-Anfrage: {e}")
+        st.error(f"Verbindungsfehler bei NLU-Anfrage: {e}")
         return []
 
 # ------------------------------------------------------------------------------
@@ -97,10 +104,8 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
     if not user_input.strip():
         st.warning("Bitte geben Sie zuerst einen Text ein.")
     else:
-        client = init_gemini()
-        
         with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
-            extracted_facts = extract_prolog_facts(client, user_input)
+            extracted_facts = extract_prolog_facts(user_input)
             
         st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
         if extracted_facts:
