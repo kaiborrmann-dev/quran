@@ -1,0 +1,3 @@
+streamlit
+pyswip
+google-genai
