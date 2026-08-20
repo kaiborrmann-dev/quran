@@ -1,7 +1,7 @@
 import os
 import json
-import requests
 import streamlit as st
+from openai import OpenAI
 from pyswip import Prolog
 
 # ------------------------------------------------------------------------------
@@ -13,8 +13,15 @@ st.set_page_config(
     page_icon="🏛️"
 )
 
-# API Key festlegen
-API_KEY = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
+# OpenAI Client initialisieren
+@st.cache_resource
+def init_openai():
+    # Greift auf den in Streamlit Secrets hinterlegten Schlüssel zu
+    api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        st.error("Kein OPENAI_API_KEY in den Streamlit Secrets gefunden!")
+        return None
+    return OpenAI(api_key=api_key)
 
 # SWI-Prolog Engine laden
 @st.cache_resource
@@ -31,9 +38,9 @@ def init_prolog():
 prolog = init_prolog()
 
 # ------------------------------------------------------------------------------
-# 2. NLU-PARSER PER DIREKTEM REST-CALL (UMGEHT SDK-PARSING)
+# 2. NLU-PARSER VIA OPENAI GPT
 # ------------------------------------------------------------------------------
-def extract_prolog_facts(user_text):
+def extract_prolog_facts(client, user_text):
     system_prompt = """
 Du bist ein NLU-Parser für ein koranisches Rechts- und Ethik-Logiksystem in Prolog.
 Deine Aufgabe ist es, freien Fließtext zu analysieren und in exakte Prolog-Fakten unseres Vokabulars zu übersetzen.
@@ -58,41 +65,39 @@ Beispiel-Antwort:
   "in_iddah_frist(amina, zaid)"
 ]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
-    
-    payload = {
-        "system_instruction": {
-            "parts": [{"text": system_prompt}]
-        },
-        "contents": [{
-            "parts": [{"text": user_text}]
-        }],
-        "generationConfig": {
-            "response_mime_type": "application/json",
-            "temperature": 0.1
-        }
-    }
-    
     try:
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        res_data = response.json()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_text}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1
+        )
         
-        if response.status_code == 200:
-            text_response = res_data['candidates'][0]['content']['parts'][0]['text']
-            facts = json.loads(text_response)
-            return facts
-        else:
-            st.error(f"API-Antwort Fehler ({response.status_code}): {res_data}")
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        
+        # Falls GPT das Array in einem Key kapselt (z.B. {"facts": [...]})
+        if isinstance(parsed, dict):
+            for key in parsed:
+                if isinstance(parsed[key], list):
+                    return parsed[key]
             return []
+        elif isinstance(parsed, list):
+            return parsed
+        return []
+        
     except Exception as e:
-        st.error(f"Verbindungsfehler bei NLU-Anfrage: {e}")
+        st.error(f"Fehler bei der OpenAI NLU-Anfrage: {e}")
         return []
 
 # ------------------------------------------------------------------------------
 # 3. BENUTZEROBERFLÄCHE
 # ------------------------------------------------------------------------------
 st.title("🏛️ Koran-Normativität: KI-NLU & Logik-Inferenz")
-st.caption("Ein hybrides System aus Natural Language Understanding (Gemini API) und formaler Logik (SWI-Prolog)")
+st.caption("Ein hybrides System aus Natural Language Understanding (OpenAI GPT) und formaler Logik (SWI-Prolog)")
 
 user_input = st.text_area(
     "Geben Sie einen beliebigen Sachverhalt in eigener Sprache ein:",
@@ -104,40 +109,42 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
     if not user_input.strip():
         st.warning("Bitte geben Sie zuerst einen Text ein.")
     else:
-        with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
-            extracted_facts = extract_prolog_facts(user_input)
-            
-        st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
-        if extracted_facts:
-            st.json(extracted_facts)
-            
-            # Fakten dynamisch in die Prolog-Engine laden
-            with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
-                prolog.retractall("in_iddah_frist(_, _)")
-                prolog.retractall("taetigt_transaktion(_, _)")
-                prolog.retractall("beinhaltet_riba(_)")
-                prolog.retractall("ist_glaeubig(_)")
+        client = init_openai()
+        if client:
+            with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
+                extracted_facts = extract_prolog_facts(client, user_input)
                 
-                for fact in extracted_facts:
-                    prolog.assertz(fact)
+            st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
+            if extracted_facts:
+                st.json(extracted_facts)
                 
-                verbote = list(prolog.query("untersagt(X, Action)"))
-                gebote = list(prolog.query("gebietet(X, Action)"))
-                erlaubnisse = list(prolog.query("gestattet(X, Action)"))
+                # Fakten dynamisch in die Prolog-Engine laden
+                with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
+                    prolog.retractall("in_iddah_frist(_, _)")
+                    prolog.retractall("taetigt_transaktion(_, _)")
+                    prolog.retractall("beinhaltet_riba(_)")
+                    prolog.retractall("ist_glaeubig(_)")
+                    
+                    for fact in extracted_facts:
+                        prolog.assertz(fact)
+                    
+                    verbote = list(prolog.query("untersagt(X, Action)"))
+                    gebote = list(prolog.query("gebietet(X, Action)"))
+                    erlaubnisse = list(prolog.query("gestattet(X, Action)"))
+                    
+                st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
                 
-            st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
-            
-            if not (verbote or gebote or erlaubnisse):
-                st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis gefunden.")
-            
-            if verbote:
-                for v in verbote:
-                    st.error(f"⛔ **Untersagt für '{v['X']}':** {v['Action']}")
-            if gebote:
-                for g in gebote:
-                    st.warning(f"⚠️ **Geboten für '{g['X']}':** {g['Action']}")
-            if erlaubnisse:
-                for e in erlaubnisse:
-                    st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
-        else:
-            st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
+                if not (verbote or gebote or erlaubnisse):
+                    st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis gefunden.")
+                
+                if verbote:
+                    for v in verbote:
+                        st.error(f"⛔ **Untersagt für '{v['X']}':** {v['Action']}")
+                if gebote:
+                    for g in gebote:
+                        st.warning(f"⚠️ **Geboten für '{g['X']}':** {g['Action']}")
+                if erlaubnisse:
+                    for e in erlaubnisse:
+                        st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
+            else:
+                st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
