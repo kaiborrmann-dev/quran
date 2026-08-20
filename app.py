@@ -9,16 +9,18 @@ from pyswip import Prolog
 # 1. SETUP & INITIALISIERUNG
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Koran-Normativität: Dynamische NLU & Inferenz", 
+    page_title="Koran-Normativität: KI-NLU & Logik-Inferenz", 
     layout="wide", 
     page_icon="🏛️"
 )
 
+# Gemini Client mit direkt hinterlegtem API-Key
 @st.cache_resource
 def init_gemini():
-    return genai.Client(api_key="AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw")
+    api_key = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
+    return genai.Client(api_key=api_key)
 
-# Prolog-Engine laden
+# SWI-Prolog Engine laden
 @st.cache_resource
 def init_prolog():
     prolog = Prolog()
@@ -60,22 +62,21 @@ Beispiel-Antwort:
   "in_iddah_frist(amina, zaid)"
 ]
 """
-    
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=user_text,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            temperature=0.1
-        )
-    )
-    
     try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_text,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                temperature=0.1
+            )
+        )
         facts = json.loads(response.text)
         return facts
     except Exception as e:
-        st.error(f"Fehler beim Parsen der NLU-Antwort: {e}")
+        st.error(f"API-Fehler bei der NLU-Anfrage: {e}")
+        st.info("Bitte prüfen Sie, ob der API-Schlüssel in Google AI Studio aktiv ist oder ein neues Token generiert werden muss.")
         return []
 
 # ------------------------------------------------------------------------------
@@ -95,40 +96,42 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
         st.warning("Bitte geben Sie zuerst einen Text ein.")
     else:
         client = init_gemini()
-        if client:
-            with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
-                extracted_facts = extract_prolog_facts(client, user_input)
+        
+        with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
+            extracted_facts = extract_prolog_facts(client, user_input)
+            
+        st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
+        if extracted_facts:
+            st.json(extracted_facts)
+            
+            # Fakten dynamisch in die Prolog-Engine laden
+            with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
+                prolog.retractall("in_iddah_frist(_, _)")
+                prolog.retractall("taetigt_transaktion(_, _)")
+                prolog.retractall("beinhaltet_riba(_)")
+                prolog.retractall("ist_glaeubig(_)")
                 
-            st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
-            if extracted_facts:
-                st.json(extracted_facts)
+                for fact in extracted_facts:
+                    prolog.assertz(fact)
                 
-                # Fakten dynamisch in die Prolog-Engine laden
-                with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
-                    prolog.retractall("in_iddah_frist(_, _)")
-                    prolog.retractall("taetigt_transaktion(_, _)")
-                    prolog.retractall("beinhaltet_riba(_)")
-                    
-                    for fact in extracted_facts:
-                        prolog.assertz(fact)
-                    
-                    verbote = list(prolog.query("untersagt(X, Action)"))
-                    gebote = list(prolog.query("gebietet(X, Action)"))
-                    erlaubnisse = list(prolog.query("gestattet(X, Action)"))
-                    
-                st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
+                verbote = list(prolog.query("untersagt(X, Action)"))
+                gebote = list(prolog.query("gebietet(X, Action)"))
+                erlaubnisse = list(prolog.query("gestattet(X, Action)"))
                 
-                if not (verbote or gebote or erlaubnisse):
-                    st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis gefunden.")
-                
-                if verbote:
-                    for v in verbote:
-                        st.error(f"⛔ **Untersagt für '{v['X']}':** {v['Action']}")
-                if gebote:
-                    for g in gebote:
-                        st.warning(f"⚠️ **Geboten für '{g['X']}':** {g['Action']}")
-                if erlaubnisse:
-                    for e in erlaubnisse:
-                        st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
-            else:
-                st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
+            st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
+            
+            if not (verbote or gebote or erlaubnisse):
+                st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis gefunden.")
+            
+            if verbote:
+                for v in verbote:
+                    st.error(f"⛔ **Untersagt für '{v['X']}':** {v['Action']}")
+            if gebote:
+                for g in gebote:
+                    st.warning(f"⚠️ **Geboten für '{g['X']}':** {g['Action']}")
+            if erlaubnisse:
+                for e in erlaubnisse:
+                    st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
+        else:
+            st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
+  
