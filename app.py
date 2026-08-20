@@ -1,5 +1,9 @@
 import os
 import json
+
+# Schlüssel direkt in die Umgebungsvariablen laden
+os.environ["GEMINI_API_KEY"] = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
+
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -14,11 +18,10 @@ st.set_page_config(
     page_icon="🏛️"
 )
 
-# Gemini Client mit direkt hinterlegtem API-Key
+# Client liest den Key automatisch aus os.environ
 @st.cache_resource
 def init_gemini():
-    api_key = "AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw"
-    return genai.Client(api_key=api_key)
+    return genai.Client()
 
 # SWI-Prolog Engine laden
 @st.cache_resource
@@ -76,7 +79,6 @@ Beispiel-Antwort:
         return facts
     except Exception as e:
         st.error(f"API-Fehler bei der NLU-Anfrage: {e}")
-        st.info("Bitte prüfen Sie, ob der API-Schlüssel in Google AI Studio aktiv ist oder ein neues Token generiert werden muss.")
         return []
 
 # ------------------------------------------------------------------------------
@@ -134,4 +136,3 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
                     st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
         else:
             st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
-  
