@@ -98,7 +98,7 @@ st.caption("Ein hybrides System aus Natural Language Understanding (OpenAI GPT) 
 user_input = st.text_area(
     "Geben Sie einen beliebigen Sachverhalt in eigener Sprache ein:",
     height=100,
-    placeholder="Zaid ist Gläubiger und hat sich von Amina getrennt. Sie ist aktuell in der Wartezeit..."
+    placeholder="Darf Zaid eine fünfte Frau heiraten?"
 )
 
 if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
@@ -140,20 +140,31 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
                         except Exception as e:
                             st.caption(f"Lade-Hinweis ({fact}): {e}")
                     
-                    # Inferenz-Abfragen
+                    # Inferenz-Abfragen explizit für zaid und amr
                     verbote, gebote, erlaubnisse = [], [], []
-                    try:
-                        verbote = list(prolog.query("untersagt(X, Action)"))
-                    except Exception:
-                        pass
-                    try:
-                        gebote = list(prolog.query("gebietet(X, Action)"))
-                    except Exception:
-                        pass
-                    try:
-                        erlaubnisse = list(prolog.query("gestattet(X, Action)"))
-                    except Exception:
-                        pass
+                    akteure = ["zaid", "amr"]
+                    
+                    for akteur in akteure:
+                        try:
+                            res_v = list(prolog.query(f"untersagt({akteur}, Action)"))
+                            for item in res_v:
+                                verbote.append({"X": akteur, "Action": item["Action"]})
+                        except Exception:
+                            pass
+                            
+                        try:
+                            res_g = list(prolog.query(f"gebietet({akteur}, Action)"))
+                            for item in res_g:
+                                gebote.append({"X": akteur, "Action": item["Action"]})
+                        except Exception:
+                            pass
+                            
+                        try:
+                            res_e = list(prolog.query(f"gestattet({akteur}, Action)"))
+                            for item in res_e:
+                                erlaubnisse.append({"X": akteur, "Action": item["Action"]})
+                        except Exception:
+                            pass
                     
                 st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
                 
