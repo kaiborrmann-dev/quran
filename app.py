@@ -3,23 +3,22 @@ import streamlit as st
 from pyswip import Prolog
 
 # ------------------------------------------------------------------------------
-# 1. SETUP & INITIALISIERUNG
+# 1. INITIALISIERUNG & SEITEN-EINSTELLUNG
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Koran-Normativität: Sokratische Logik-Inferenz", 
-    layout="wide", 
-    page_icon="🏛️"
+    page_title="Koranische Normen-Inferenz", 
+    layout="wide"
 )
 
-def run_prolog_evaluation(facts):
+def evaluiere_prufung(fakten_liste):
     """
-    Erstellt eine isolierte Prolog-Instanz, schreibt die ausgewählten 
-    Prämissen A_i in ein temporäres Modul und berechnet den Modus Ponens.
+    Schreibt die eingegebenen Merkmale in eine temporäre Datei 
+    und berechnet die Rechtsfolge im Prolog-Kernel.
     """
-    facts_file = "temp_sokrates_facts.pl"
+    temp_file = "temp_fakten.pl"
     pl_file = "Koran_ethische_PROLOG_Regeln_bereinigt.pl"
     
-    with open(facts_file, "w", encoding="utf-8") as f:
+    with open(temp_file, "w", encoding="utf-8") as f:
         f.write(":- dynamic ist_glaeubig/1.\n")
         f.write(":- dynamic anzahl_ehefrauen/2.\n")
         f.write(":- dynamic beabsichtigt/2.\n")
@@ -27,127 +26,131 @@ def run_prolog_evaluation(facts):
         f.write(":- dynamic in_iddah_frist/2.\n")
         f.write(":- dynamic taetigt_transaktion/2.\n")
         f.write(":- dynamic beinhaltet_riba/1.\n\n")
-        for fact in facts:
-            f.write(f"{fact}\n")
+        for fakt in fakten_liste:
+            f.write(f"{fakt}\n")
             
     prolog = Prolog()
-    prolog.consult(facts_file)
+    prolog.consult(temp_file)
     
     if os.path.exists(pl_file):
         prolog.consult(pl_file)
     else:
-        st.error(f"Prolog-Datei '{pl_file}' wurde im Repository nicht gefunden!")
+        st.error(f"Die Regel-Datei '{pl_file}' wurde nicht im Ordner gefunden.")
         return [], [], []
 
     verbote, gebote, erlaubnisse = [], [], []
     
-    for akteur in ["zaid", "amr"]:
+    for person in ["zaid", "amr"]:
         try:
-            res_v = list(prolog.query(f"untersagt({akteur}, Action)"))
-            for item in res_v:
-                verbote.append({"X": akteur, "Action": str(item["Action"])})
+            res_v = list(prolog.query(f"untersagt({person}, Handlung)"))
+            for eintrag in res_v:
+                verbote.append({"Person": person, "Handlung": str(eintrag["Handlung"])})
         except Exception:
             pass
 
         try:
-            res_g = list(prolog.query(f"gebietet({akteur}, Action)"))
-            for item in res_g:
-                gebote.append({"X": akteur, "Action": str(item["Action"])})
+            res_g = list(prolog.query(f"gebietet({person}, Handlung)"))
+            for eintrag in res_g:
+                gebote.append({"Person": person, "Handlung": str(eintrag["Handlung"])})
         except Exception:
             pass
 
         try:
-            res_e = list(prolog.query(f"gestattet({akteur}, Action)"))
-            for item in res_e:
-                erlaubnisse.append({"X": akteur, "Action": str(item["Action"])})
+            res_e = list(prolog.query(f"gestattet({person}, Handlung)"))
+            for eintrag in res_e:
+                erlaubnisse.append({"Person": person, "Handlung": str(eintrag["Handlung"])})
         except Exception:
             pass
             
     return verbote, gebote, erlaubnisse
 
 # ------------------------------------------------------------------------------
-# 2. BENUTZEROBERFLÄCHE (SOKRATISCHE PRÄMISSEN-ABFRAGE)
+# 2. BENUTZEROBERFLÄCHE (FORMULAR)
 # ------------------------------------------------------------------------------
-st.title("🏛️ Koran-Normativität: Sokratische Logik-Inferenz")
-st.caption("Deterministische Modus-Ponens-Auswertung auf Basis koranischer Tatbestandsmerkmale ($A \\rightarrow B$)")
+st.title("Koranische Normen-Inferenz")
+st.write("Wählen Sie den Themenbereich und stellen Sie die konkreten Merkmale ein.")
 
 st.markdown("---")
 
-# 1. Thema / Normenkomplex wählen (Ziel B)
+# Themen-Auswahl
 thema = st.selectbox(
-    "1. Wählen Sie den zu prüfenden Normenkomplex (Ziel-Konklusion B):",
+    "Themenbereich wählen:",
     [
-        "Eherecht: Schranken der Vielehe (Sure 4:3)",
-        "Wirtschaftsethik: Zinsverbot / Ribā (Sure 2:275)",
-        "Familienrecht: Evakuierungsverbot während der 'Iddah (Sure 65:1)"
+        "Eherecht: Schranken der Vielehe",
+        "Wirtschaftsrecht: Zinsverbot (Ribā)",
+        "Familienrecht: Wartezeit ('Iddah)"
     ]
 )
 
 st.markdown("---")
-st.subheader("2. Tatbestandsmerkmale & Prämissen-Belegung ($A_i$)")
 
-facts_to_assert = []
+fakten_liste = []
 
-# Dynamische Formular-Maske je nach gewähltem Thema
-if "Schranken der Vielehe" in thema:
+# Formularfelder je nach Thema
+if thema == "Eherecht: Schranken der Vielehe":
+    st.subheader("Merkmale für das Eherecht")
+    
     col1, col2 = st.columns(2)
-    
     with col1:
-        akteur = st.selectbox("Akteur (X):", ["zaid", "amr"])
-        ist_glaeubig = st.radio(f"A_1: Ist {akteur.capitalize()} Gläubiger?", ["Ja", "Nein"], index=0)
-        
+        person = st.selectbox("Betroffene Person:", ["zaid", "amr"])
+        glaeubig = st.radio("Ist die Person gläubig?", ["Ja", "Nein"], index=0)
+    
     with col2:
-        anzahl_ehen = st.number_input(f"A_2: Bestehende Ehen von {akteur.capitalize()} (N):", min_value=0, max_value=10, value=4)
-        beabsichtigt = st.radio(f"A_3: Beabsichtigt {akteur.capitalize()} eine weitere Eheschließung?", ["Ja", "Nein"], index=0)
-
-    # Konstruktion der präzisen Prämissenmenge A
-    if ist_glaeubig == "Ja":
-        facts_to_assert.append(f"ist_glaeubig({akteur}).")
-    facts_to_assert.append(f"anzahl_ehefrauen({akteur}, {anzahl_ehen}).")
-    if beabsichtigt == "Ja":
-        facts_to_assert.append(f"beabsichtigt({akteur}, eheschliessung).")
-        facts_to_assert.append(f"beabsichtigt_eheschliessung({akteur}).")
-
-elif "Zinsverbot" in thema:
-    akteur = st.selectbox("Akteur (X):", ["zaid", "amr"])
-    ist_glaeubig = st.radio(f"A_1: Ist {akteur.capitalize()} Gläubiger?", ["Ja", "Nein"], index=0)
-    beinhaltet_riba = st.radio("A_2: Beinhaltet die Finanztransaktion Zins/Ribā?", ["Ja", "Nein"], index=0)
+        bestehende_ehen = st.number_input("Bestehende Ehen (Anzahl):", min_value=0, max_value=10, value=4)
+        absicht_heirat = st.radio("Beabsichtigt eine weitere Eheschließung?", ["Ja", "Nein"], index=0)
     
-    if ist_glaeubig == "Ja":
-        facts_to_assert.append(f"ist_glaeubig({akteur}).")
-    if beinhaltet_riba == "Ja":
-        facts_to_assert.append(f"taetigt_transaktion({akteur}, t1).")
-        facts_to_assert.append("beinhaltet_riba(t1).")
+    # Fakten zusammensetzen
+    if glaeubig == "Ja":
+        fakten_liste.append(f"ist_glaeubig({person}).")
+    fakten_liste.append(f"anzahl_ehefrauen({person}, {bestehende_ehen}).")
+    if absicht_heirat == "Ja":
+        fakten_liste.append(f"beabsichtigt({person}, eheschliessung).")
+        fakten_liste.append(f"beabsichtigt_eheschliessung({person}).")
 
-elif "Iddah" in thema:
-    akteur = st.selectbox("Akteur (X):", ["zaid", "amr"])
+elif thema == "Wirtschaftsrecht: Zinsverbot (Ribā)":
+    st.subheader("Merkmale für Finanzgeschäfte")
+    
+    person = st.selectbox("Betroffene Person:", ["zaid", "amr"])
+    glaeubig = st.radio("Ist die Person gläubig?", ["Ja", "Nein"], index=0)
+    zins_enthalten = st.radio("Enthält das Geschäft Zinsen (Ribā)?", ["Ja", "Nein"], index=0)
+    
+    if glaeubig == "Ja":
+        fakten_liste.append(f"ist_glaeubig({person}).")
+    if zins_enthalten == "Ja":
+        fakten_liste.append(f"taetigt_transaktion({person}, geschaeft1).")
+        fakten_liste.append("beinhaltet_riba(geschaeft1).")
+
+elif thema == "Familienrecht: Wartezeit ('Iddah)":
+    st.subheader("Merkmale für die Wartezeit")
+    
+    person = st.selectbox("Betroffene Person:", ["zaid", "amr"])
     partnerin = "amina"
-    in_iddah = st.radio(f"A_1: Befindet sich {partnerin.capitalize()} in der Wartezeit ('Iddah) von {akteur.capitalize()}?", ["Ja", "Nein"], index=0)
+    in_wartezeit = st.radio(f"Befindet sich {partnerin.capitalize()} in der Wartezeit von {person.capitalize()}?", ["Ja", "Nein"], index=0)
     
-    if in_iddah == "Ja":
-        facts_to_assert.append(f"in_iddah_frist({partnerin}, {akteur}).")
+    if in_wartezeit == "Ja":
+        fakten_liste.append(f"in_iddah_frist({partnerin}, {person}).")
 
 st.markdown("---")
-st.subheader("3. Formale Logik-Repräsentation")
 
-st.write("Generierte Prämissenmenge $A$ für den Prolog-Kernel:")
-st.code("\n".join(facts_to_assert), language="prolog")
+# Anzeige der im Hintergrund gesetzten Fakten
+st.subheader("Erfasste Merkmale (Eingabe)")
+st.code("\n".join(fakten_liste), language="prolog")
 
-# 3. Inferenz per Klick
-if st.button("⚖️ Modus Ponens berechnen", type="primary"):
-    verbote, gebote, erlaubnisse = run_prolog_evaluation(facts_to_assert)
+# Auswertung
+if st.button("Rechtsfolge auswerten", type="primary"):
+    verbote, gebote, erlaubnisse = evaluiere_prufung(fakten_liste)
     
-    st.subheader("4. Berechnete Rechtsfolge (Prolog Kernel)")
+    st.subheader("Ergebnis der Auswertung")
     
     if not (verbote or gebote or erlaubnisse):
-        st.info("Prämissen unvollständig oder Tatbestand nicht erfüllt: Keine Rechtsfolge ausgelöst.")
+        st.info("Die eingegebenen Merkmale lösen keine direkte Rechtsfolge nach den hinterlegten Regeln aus.")
     
     if verbote:
         for v in verbote:
-            st.error(f"⛔ **Untersagt für '{v['X']}':** {v['Action']}")
+            st.error(f"Untersagt für {v['Person'].capitalize()}: {v['Handlung']}")
     if gebote:
         for g in gebote:
-            st.warning(f"⚠️ **Geboten für '{g['X']}':** {g['Action']}")
+            st.warning(f"Geboten für {g['Person'].capitalize()}: {g['Handlung']}")
     if erlaubnisse:
         for e in erlaubnisse:
-            st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
+            st.success(f"Gestattet für {e['Person'].capitalize()}: {e['Handlung']}")
