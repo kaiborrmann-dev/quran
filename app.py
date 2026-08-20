@@ -8,12 +8,11 @@ from pyswip import Prolog
 # 1. SETUP & INITIALISIERUNG
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Koran-Normativität: Dynamische NLU & Inferenz", 
+    page_title="Koran-Normativität: KI-NLU & Logik-Inferenz", 
     layout="wide", 
     page_icon="🏛️"
 )
 
-# OpenAI Client initialisieren
 @st.cache_resource
 def init_openai():
     api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
@@ -22,7 +21,6 @@ def init_openai():
         return None
     return OpenAI(api_key=api_key)
 
-# SWI-Prolog Engine laden
 @st.cache_resource
 def init_prolog():
     prolog = Prolog()
@@ -37,22 +35,21 @@ def init_prolog():
 prolog = init_prolog()
 
 # ------------------------------------------------------------------------------
-# 2. GENERATIVE NLU-PIPELINE (UNIVERSELLER TEXT-ZU-PROLOG PARSER)
+# 2. GENERATIVE NLU-PIPELINE (OPENAI GPT)
 # ------------------------------------------------------------------------------
 def extract_prolog_facts(client, user_text):
     system_prompt = """
 Du bist ein universeller NLU-Parser für ein koranisches Rechts- und Ethik-Logiksystem in Prolog.
-Deine Aufgabe ist es, beliebigen deutschen Freitext präzise zu analysieren und in valide Prolog-Fakten zu übersetzen.
+Deine Aufgabe ist es, beliebigen Freitext in valide Prolog-Fakten (Snake_Case, Kleinschreibung für Atome) zu übersetzen.
 
 Regeln zur Fakten-Generierung:
-1. Verwende ausschließlich Kleinschreibung und Snake_Case für Prädikate und Konstanten (z.B. zaid, ehefrau, eheschliessung).
-2. Extrahiere Akteure und Status (z.B. ist_glaeubig(zaid), status(zaid, verheiratet)).
-3. Extrahiere Quantitäten & Zählwerte (z.B. anzahl_ehefrauen(zaid, 4)).
-4. Extrahiere Absichten & Handlungen (z.B. beabsichtigt(zaid, eheschliessung), spricht_talaq_aus(zaid, amina)).
-5. Extrahiere Kontext-, Frist- & Raumkonditionen (z.B. in_iddah_frist(amina, zaid), im_zustand_ihram(zaid)).
+1. Extrahiere Subjekte/Akteure (z.B. person(zaid), ist_glaeubig(zaid)).
+2. Extrahiere quantifizierbare Zustände (z.B. anzahl_ehefrauen(zaid, 4), status(zaid, verheiratet)).
+3. Extrahiere intentionale Handlungen (z.B. beabsichtigt(zaid, eheschliessung), taetigt_transaktion(person, t1)).
+4. Extrahiere relationale Zuweisungen (z.B. in_iddah_frist(frau, mann), anvertraut_vermoegen(person)).
 
-Gib das Ergebnis STRIKT als JSON-Array von Prolog-Fakten-Strings zurück.
-Beispiel-Antwort:
+Gib das Ergebnis STRIKT als JSON-Array von Prolog-Fakten-Strings zurück (ohne Anführungszeichen innerhalb der Prädikate).
+Beispiel:
 [
   "ist_glaeubig(zaid)",
   "anzahl_ehefrauen(zaid, 4)",
@@ -83,19 +80,19 @@ Beispiel-Antwort:
         return []
         
     except Exception as e:
-        st.error(f"Fehler bei der NLU-Extraktion: {e}")
+        st.error(f"Fehler bei der NLU-Anfrage: {e}")
         return []
 
 # ------------------------------------------------------------------------------
-# 3. BENUTZEROBERFLÄCHE & LOGIK-EVALUATION
+# 3. BENUTZEROBERFLÄCHE & INFERENZ
 # ------------------------------------------------------------------------------
 st.title("🏛️ Koran-Normativität: KI-NLU & Logik-Inferenz")
-st.caption("Generatives Natural Language Understanding (OpenAI GPT) gekoppelt mit formaler SWI-Prolog Inferenz")
+st.caption("Ein hybrides System aus Natural Language Understanding (OpenAI GPT) und formaler Logik (SWI-Prolog)")
 
 user_input = st.text_area(
     "Geben Sie einen beliebigen Sachverhalt in eigener Sprache ein:",
     height=100,
-    placeholder="Beispiel: Zaid ist Gläubiger, hat bereits 4 Frauen und möchte eine weitere Ehe schließen..."
+    placeholder="Zaid ist Gläubiger und hat sich von Amina getrennt. Sie ist aktuell in der Wartezeit. Er überlegt, sie aus der Wohnung zu weisen..."
 )
 
 if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
@@ -104,7 +101,7 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
     else:
         client = init_openai()
         if client:
-            with st.spinner("1. Generative NLU extrahiert logische Fakten..."):
+            with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
                 extracted_facts = extract_prolog_facts(client, user_input)
                 
             st.subheader("1. Extrahierter NLU-Kontext (Prolog-Fakten)")
@@ -112,32 +109,49 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
                 st.json(extracted_facts)
                 
                 with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
-                    # Dynamischen Arbeitsspeicher vor Inferenz bereinigen
-                    for predicate in [
-                        "in_iddah_frist/2", "taetigt_transaktion/2", "beinhaltet_riba/1", 
-                        "ist_glaeubig/1", "anzahl_ehefrauen/2", "beabsichtigt/2"
-                    ]:
+                    # Deklariere dynamische Prädikate, um 'Unknown Predicate' Fehler zu verhindern
+                    dynamic_predicates = [
+                        "beabsichtigt/2", "anzahl_ehefrauen/2", "ist_glaeubig/1", 
+                        "in_iddah_frist/2", "taetigt_transaktion/2", "beinhaltet_riba/1"
+                    ]
+                    for pred in dynamic_predicates:
                         try:
-                            prolog.retractall(f"{predicate.split('/')[0]}(_)")
+                            list(prolog.query(f"dynamic({pred})"))
                         except Exception:
                             pass
                     
-                    # Extrahierte Fakten in den Arbeitsbereich laden
+                    # Altdaten bereinigen
+                    prolog.retractall("beabsichtigt(_, _)")
+                    prolog.retractall("anzahl_ehefrauen(_, _)")
+                    prolog.retractall("in_iddah_frist(_, _)")
+                    prolog.retractall("ist_glaeubig(_)")
+                    
+                    # Neue Fakten aus der NLU einspeisen
                     for fact in extracted_facts:
                         try:
                             prolog.assertz(fact)
-                        except Exception as pe:
-                            st.caption(f"Hinweis zu Fakt `{fact}`: {pe}")
+                        except Exception as e:
+                            st.caption(f"Hinweis beim Laden des Faktums '{fact}': {e}")
                     
-                    # Deontische Abfragen ausführen
-                    verbote = list(prolog.query("untersagt(X, Action)"))
-                    gebote = list(prolog.query("gebietet(X, Action)"))
-                    erlaubnisse = list(prolog.query("gestattet(X, Action)"))
+                    # Inferenz-Abfragen mit Absicherung
+                    verbote, gebote, erlaubnisse = [], [], []
+                    try:
+                        verbote = list(prolog.query("untersagt(X, Action)"))
+                    except Exception:
+                        pass
+                    try:
+                        gebote = list(prolog.query("gebietet(X, Action)"))
+                    except Exception:
+                        pass
+                    try:
+                        erlaubnisse = list(prolog.query("gestattet(X, Action)"))
+                    except Exception:
+                        pass
                     
                 st.subheader("2. Berechnete Inferenz-Ergebnisse (Prolog Kernel)")
                 
                 if not (verbote or gebote or erlaubnisse):
-                    st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis gefunden.")
+                    st.info("Keine spezifischen normativen Verbote oder Gebote für die erkannten Fakten in der Wissensbasis definiert.")
                 
                 if verbote:
                     for v in verbote:
@@ -149,4 +163,4 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
                     for e in erlaubnisse:
                         st.success(f"✅ **Gestattet für '{e['X']}':** {e['Action']}")
             else:
-                st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten ableiten.")
+                st.warning("Die NLU konnte aus dem eingegebenen Text keine passenden Logik-Fakten deriveieren.")
