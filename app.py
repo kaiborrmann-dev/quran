@@ -14,14 +14,9 @@ st.set_page_config(
     page_icon="🏛️"
 )
 
-# Gemini Client initialisieren (Greift automatisch auf GEMINI_API_KEY in Secrets zu)
 @st.cache_resource
 def init_gemini():
-    api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        st.error("Kein GEMINI_API_KEY in den Streamlit Secrets hinterlegt!")
-        return None
-    return genai.Client(api_key=api_key)
+    return genai.Client(api_key="AQ.Ab8RN6J8F1P787_x6CnHl4wPKNMgDBTl_kcGxoLs0Eu_4DVUw")
 
 # Prolog-Engine laden
 @st.cache_resource
