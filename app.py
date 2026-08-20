@@ -1,3 +1,5 @@
+import os
+import re
 import streamlit as st
 
 # ------------------------------------------------------------------------------
@@ -5,47 +7,115 @@ import streamlit as st
 # ------------------------------------------------------------------------------
 st.set_page_config(page_title="Koranische Normen-Inferenz", layout="wide")
 st.title("🏛️ Koranische Normen-Inferenz")
-st.write("Native Modus-Ponens-Auswertung in reinem Python (ohne fehleranfälliges SWI-Prolog).")
+st.write("Automatischer Parser: Liest die Regeln direkt aus der `.pl`-Datei und generiert native Modus-Ponens-Abfragen.")
+
+pl_file = "Koran_ethische_PROLOG_Regeln_bereinigt.pl"
+
+if not os.path.exists(pl_file):
+    st.error(f"Die Datei '{pl_file}' wurde nicht gefunden!")
+    st.stop()
 
 # ------------------------------------------------------------------------------
-# 2. REGEL-KATALOG (Deterministische Logik)
+# 2. PROLOG PARSER (Liest die .pl-Datei)
 # ------------------------------------------------------------------------------
-# Hier definieren wir die Regeln als reine Datenstruktur. 
-# Keine C-Bindings, keine Parser-Probleme.
-REGELN = {
-    "K-004: Zinsverbot (Ribā)": {
-        "ziel": "untersagt(zaid, vollzug_transaktion(geschaeft1))",
-        "praemissen": {
-            "taetigt_transaktion(zaid, geschaeft1)": "Tätigt Zaid das Geschäft 'geschaeft1'?",
-            "beinhaltet_riba(geschaeft1)": "Enthält 'geschaeft1' Zinsen (Ribā)?"
-        }
-    },
-    "K-003: Fastenpflicht (Ramadan)": {
-        "ziel": "gebietet(zaid, fasten_ramadan)",
-        "praemissen": {
-            "ist_glaeubig(zaid)": "Ist Zaid gläubig?",
-            "nicht_krank(zaid)": "Ist Zaid gesund (nicht krank)?",
-            "nicht_auf_reisen(zaid)": "Befindet sich Zaid am Heimatort (nicht auf Reisen)?"
-        }
-    },
-    "K-015: Ausweisungsverbot in der Wartezeit ('Iddah)": {
-        "ziel": "untersagt(zaid, ausweisung_aus_ehewohnung(amina))",
-        "praemissen": {
-            "in_iddah_frist(amina, zaid)": "Befindet sich Amina in der 'Iddah-Frist von Zaid?"
-        }
-    },
-    "K-006: Eheverbot (Maḥram)": {
-        "ziel": "untersagt(zaid, eheschliessung(fathima))",
-        "praemissen": {
-            "ist_mahram(zaid, fathima)": "Ist Fathima ein Maḥram-Verwandtenstatus für Zaid?"
-        }
+def konretisiere_variablen(text):
+    """Ersetzt abstrakte Prolog-Variablen durch anschauliche Bezeichner für die UI."""
+    replacements = {
+        r'\bX\b': 'zaid',
+        r'\bY\b': 'amr',
+        r'\bT\b': 'geschaeft1',
+        r'\bF\b': 'amina',
+        r'\bM\b': 'zaid',       # M (Ehemann) -> zaid
+        r'\bH\b': 'zaid',       # H (Husband) -> zaid
+        r'\bG\b': 'staat',
+        r'\bV\b': 'vertrag1',
+        r'\bD\b': 'delikt1',
+        r'\bW\b': 'waisenkind1',
+        r'\bE\b': 'erbe1',
+        r'\bK\b': 'kind1',
+        r'\bU\b': 'unfreier1',
+        r'\bS\b': 'speise1'
     }
-}
+    for pattern, repl in replacements.items():
+        text = re.sub(pattern, repl, text)
+    return text
+
+@st.cache_data
+def lade_regel_katalog(filepath):
+    rules_dict = {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Zerlege die Datei anhand der großen Kommentar-Trennlinien
+    blocks = re.split(r'% -{70,}', content)
+    
+    for block in blocks:
+        # Suche nach dem Titel des Blocks (z.B. % K-004: WIRTSCHAFTSETHIK)
+        title_match = re.search(r'% K-\d{3}:\s*(.*?)\n', block)
+        if not title_match: 
+            continue
+        thema = title_match.group(1).strip()
+        
+        # Suche nach allen Regeln, die mit gebietet, untersagt oder gestattet beginnen
+        rule_matches = re.finditer(
+            r'^(gebietet|untersagt|gestattet)\((.*?)\)\s*:-\s*(.*?)\.', 
+            block, 
+            re.MULTILINE | re.DOTALL
+        )
+        
+        for i, rm in enumerate(rule_matches):
+            kopf_typ = rm.group(1)
+            kopf_args = konretisiere_variablen(rm.group(2))
+            rumpf_raw = rm.group(3)
+            
+            ziel = f"{kopf_typ}({kopf_args})"
+            
+            # Rumpf bereinigen (Zeilenumbrüche entfernen) und Variablen übersetzen
+            rumpf_clean = re.sub(r'\s+', ' ', rumpf_raw).strip()
+            rumpf_clean = konretisiere_variablen(rumpf_clean)
+            
+            # Prämissen trennen (splittet bei Komma, sofern es nicht innerhalb von Klammern steht)
+            praemissen_raw = re.split(r',\s*(?![^()]*\))', rumpf_clean)
+            
+            praemissen = {}
+            for p in praemissen_raw:
+                p = p.strip()
+                if not p: continue
+                
+                # UI-Texte je nach Prolog-Syntax anpassen
+                if p.startswith(r'\+'):
+                    p_clean = p.replace(r'\+', '').strip()
+                    label = f"Gilt NICHT: `{p_clean}`?"
+                elif ';' in p:
+                    label = f"Trifft MINDESTENS EINES zu: `{p}`?"
+                else:
+                    label = f"Gilt: `{p}`?"
+                    
+                praemissen[p] = label
+            
+            # Regel-Namen für das Dropdown-Menü generieren
+            regel_name = f"{thema} ({kopf_typ.capitalize()})"
+            if regel_name in rules_dict:
+                regel_name = f"{regel_name} #{i+1}"
+                
+            rules_dict[regel_name] = {
+                "ziel": ziel,
+                "praemissen": praemissen
+            }
+            
+    return rules_dict
+
+# Katalog einmalig laden und parsen
+REGELN = lade_regel_katalog(pl_file)
+
+if not REGELN:
+    st.warning("Keine gültigen Regeln in der Datei gefunden.")
+    st.stop()
 
 # ------------------------------------------------------------------------------
 # 3. BENUTZEROBERFLÄCHE
 # ------------------------------------------------------------------------------
-ausgewaehlte_regel = st.selectbox("Normenkomplex wählen:", list(REGELN.keys()))
+ausgewaehlte_regel = st.selectbox("Normenkomplex aus der .pl-Datei wählen:", list(REGELN.keys()))
 regel_data = REGELN[ausgewaehlte_regel]
 
 st.markdown("---")
@@ -54,10 +124,8 @@ st.code(regel_data["ziel"], language="prolog")
 
 st.subheader("2. Prämissenbelegung für den Modus Ponens (A)")
 
-# Die Liste speichert alle vom Nutzer aktivierten Prämissen
 aktivierte_praemissen = set()
 
-# Dynamisch die Checkboxen für die geforderten Prämissen generieren
 for fakt_code, label in regel_data["praemissen"].items():
     if st.checkbox(f"{label}  👉  `{fakt_code}`", value=True):
         aktivierte_praemissen.add(fakt_code)
@@ -78,13 +146,10 @@ if st.button("⚖️ Modus Ponens berechnen", type="primary"):
     
     st.subheader("4. Ergebnis der logischen Auswertung")
     
-    # Der Modus Ponens ist mathematisch erfüllt, wenn alle geforderten 
-    # Prämissen der Regel eine Teilmenge der aktivierten Prämissen sind.
+    # Mengenlehre: Sind alle zwingenden Vorgaben angekreuzt?
     if geforderte_praemissen.issubset(aktivierte_praemissen):
         st.error(f"⛔ **MODUS PONENS ERFÜLLT:** `{ziel_term}` ist aus den Prämissen logisch bewiesen.")
     else:
-        # Finde heraus, welche Prämissen noch fehlen, um dem Nutzer didaktisches Feedback zu geben
         fehlend = geforderte_praemissen - aktivierte_praemissen
         fehlend_str = "\n".join([f"- {f}" for f in fehlend])
-        
-        st.info(f"ℹ️ **MODUS PONENS NICHT ERFÜLLT:** `{ziel_term}` lässt sich nicht ableiten.\n\nEs fehlen noch folgende Bedingungen:\n{fehlend_str}")
+        st.info(f"ℹ️ **MODUS PONENS NICHT ERFÜLLT:** `{ziel_term}` lässt sich nicht ableiten.\n\nEs fehlen noch:\n{fehlend_str}")
