@@ -68,22 +68,34 @@ st.subheader("3. Aktivierte Faktenmenge A")
 st.code("\n".join(gesetzte_fakten), language="prolog")
 
 if st.button("⚖️ Modus Ponens auswerten", type="primary"):
-    prolog = Prolog()
+    session_file = "temp_session.pl"
     
-    try:
-        # Zuerst die Wissensbasis laden
-        prolog.consult(pl_file)
+    # 1. Sitzungsdatei schreiben: Dynamische Deklarationen + Fakten + include
+    with open(session_file, "w", encoding="utf-8") as f:
+        f.write(":- dynamic ist_glaeubig/1.\n")
+        f.write(":- dynamic anzahl_ehefrauen/2.\n")
+        f.write(":- dynamic beabsichtigt/2.\n")
+        f.write(":- dynamic beabsichtigt_eheschliessung/1.\n")
+        f.write(":- dynamic in_iddah_frist/2.\n")
+        f.write(":- dynamic taetigt_transaktion/2.\n")
+        f.write(":- dynamic beinhaltet_riba/1.\n\n")
         
-        # Ausgewählte Fakten via assertz einspeisen
         for fkt in gesetzte_fakten:
-            prolog.assertz(fkt)
+            f.write(f"{fkt}.\n")
             
+        f.write("\n")
+        f.write(f":- include('{pl_file}').\n")
+
+    # 2. Ausführung im Prolog-Kernel
+    try:
+        prolog = Prolog()
+        prolog.consult(session_file)
+        
         ziel_term = regel_data["ziel"]
         res = list(prolog.query(ziel_term))
         
         st.subheader("4. Auswertung des Prolog-Kernels")
         
-        # PySWIP liefert bei erfüllter grundierter Aussage [{}] (Länge > 0)
         if len(res) > 0:
             st.error(f"⛔ **MODUS PONENS ERFÜLLT:** `{ziel_term}` gilt als erwiesen.")
         else:
