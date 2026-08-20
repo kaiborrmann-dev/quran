@@ -25,8 +25,8 @@ def konretisiere_variablen(text):
         r'\bY\b': 'amr',
         r'\bT\b': 'geschaeft1',
         r'\bF\b': 'amina',
-        r'\bM\b': 'zaid',       # M (Ehemann) -> zaid
-        r'\bH\b': 'zaid',       # H (Husband) -> zaid
+        r'\bM\b': 'zaid',
+        r'\bH\b': 'zaid',
         r'\bG\b': 'staat',
         r'\bV\b': 'vertrag1',
         r'\bD\b': 'delikt1',
@@ -34,7 +34,15 @@ def konretisiere_variablen(text):
         r'\bE\b': 'erbe1',
         r'\bK\b': 'kind1',
         r'\bU\b': 'unfreier1',
-        r'\bS\b': 'speise1'
+        r'\bS\b': 'speise1',
+        r'\bP1\b': 'partei_a',
+        r'\bP2\b': 'partei_b',
+        r'\bN\b': 'nachricht1',
+        r'\bTaelter\b': 'taeter_amr',
+        r'\bOpfer\b': 'opfer_zaid',
+        r'\bVormund\b': 'vormund_zaid',
+        r'\bErblasser\b': 'erblasser_amr',
+        r'\bPerson\b': 'person1'
     }
     for pattern, repl in replacements.items():
         text = re.sub(pattern, repl, text)
@@ -46,21 +54,21 @@ def lade_regel_katalog(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Zerlege die Datei anhand der großen Kommentar-Trennlinien
-    blocks = re.split(r'% -{70,}', content)
+    # Zerteilt die Datei genau vor jedem neuen Normenkomplex (Titel)
+    blocks = re.split(r'(?=% K-\d{3}:)', content)
     
     for block in blocks:
-        # Suche nach dem Titel des Blocks (z.B. % K-004: WIRTSCHAFTSETHIK)
-        title_match = re.search(r'% K-\d{3}:\s*(.*?)\n', block)
+        # 1. Titel extrahieren
+        title_match = re.search(r'% (K-\d{3}:\s*.*?)\n', block)
         if not title_match: 
             continue
         thema = title_match.group(1).strip()
         
-        # Suche nach allen Regeln, die mit gebietet, untersagt oder gestattet beginnen
+        # 2. Regeln extrahieren (Erfasst alles bis zum ersten Punkt)
         rule_matches = re.finditer(
-            r'^(gebietet|untersagt|gestattet)\((.*?)\)\s*:-\s*(.*?)\.', 
+            r'^(gebietet|untersagt|gestattet)\((.*)\)\s*:-\s*([\s\S]*?)\.', 
             block, 
-            re.MULTILINE | re.DOTALL
+            re.MULTILINE
         )
         
         for i, rm in enumerate(rule_matches):
@@ -105,7 +113,7 @@ def lade_regel_katalog(filepath):
             
     return rules_dict
 
-# Katalog einmalig laden und parsen
+# Katalog laden
 REGELN = lade_regel_katalog(pl_file)
 
 if not REGELN:
