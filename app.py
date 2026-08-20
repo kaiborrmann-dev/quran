@@ -8,7 +8,7 @@ from pyswip import Prolog
 # 1. SETUP & INITIALISIERUNG
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Koran-Normativität: KI-NLU & Logik-Inferenz", 
+    page_title="Koran-Normativität: Dynamische NLU & Inferenz", 
     layout="wide", 
     page_icon="🏛️"
 )
@@ -16,7 +16,6 @@ st.set_page_config(
 # OpenAI Client initialisieren
 @st.cache_resource
 def init_openai():
-    # Greift auf den in Streamlit Secrets hinterlegten Schlüssel zu
     api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         st.error("Kein OPENAI_API_KEY in den Streamlit Secrets gefunden!")
@@ -38,31 +37,26 @@ def init_prolog():
 prolog = init_prolog()
 
 # ------------------------------------------------------------------------------
-# 2. NLU-PARSER VIA OPENAI GPT
+# 2. GENERATIVE NLU-PIPELINE (UNIVERSELLER TEXT-ZU-PROLOG PARSER)
 # ------------------------------------------------------------------------------
 def extract_prolog_facts(client, user_text):
     system_prompt = """
-Du bist ein NLU-Parser für ein koranisches Rechts- und Ethik-Logiksystem in Prolog.
-Deine Aufgabe ist es, freien Fließtext zu analysieren und in exakte Prolog-Fakten unseres Vokabulars zu übersetzen.
+Du bist ein universeller NLU-Parser für ein koranisches Rechts- und Ethik-Logiksystem in Prolog.
+Deine Aufgabe ist es, beliebigen deutschen Freitext präzise zu analysieren und in valide Prolog-Fakten zu übersetzen.
 
-Nutze ausschließlich folgende Prädikats-Strukturen, falls sie auf den Sachverhalt zutreffen:
-- ist_glaeubig(Person)
-- ehemann_verstorben(Person)
-- in_iddah_frist(Frau, Mann)
-- spricht_talaq_aus(Mann, Frau)
-- taetigt_transaktion(Person, TransaktionId)
-- ist_wirtschaftstransaktion(TransaktionId)
-- beinhaltet_riba(TransaktionId)
-- beinhaltet_tatfif(TransaktionId)
-- im_zustand_ihram(Person)
-- toetet_landtier(Person, Tier)
-- anvertraut_vermoegen(Person)
+Regeln zur Fakten-Generierung:
+1. Verwende ausschließlich Kleinschreibung und Snake_Case für Prädikate und Konstanten (z.B. zaid, ehefrau, eheschliessung).
+2. Extrahiere Akteure und Status (z.B. ist_glaeubig(zaid), status(zaid, verheiratet)).
+3. Extrahiere Quantitäten & Zählwerte (z.B. anzahl_ehefrauen(zaid, 4)).
+4. Extrahiere Absichten & Handlungen (z.B. beabsichtigt(zaid, eheschliessung), spricht_talaq_aus(zaid, amina)).
+5. Extrahiere Kontext-, Frist- & Raumkonditionen (z.B. in_iddah_frist(amina, zaid), im_zustand_ihram(zaid)).
 
-Gib das Ergebnis STRIKT als JSON-Array von Strings zurück, ohne Markdown-Formatierung außerhalb des JSON.
+Gib das Ergebnis STRIKT als JSON-Array von Prolog-Fakten-Strings zurück.
 Beispiel-Antwort:
 [
   "ist_glaeubig(zaid)",
-  "in_iddah_frist(amina, zaid)"
+  "anzahl_ehefrauen(zaid, 4)",
+  "beabsichtigt(zaid, eheschliessung)"
 ]
 """
     try:
@@ -79,7 +73,6 @@ Beispiel-Antwort:
         content = response.choices[0].message.content
         parsed = json.loads(content)
         
-        # Falls GPT das Array in einem Key kapselt (z.B. {"facts": [...]})
         if isinstance(parsed, dict):
             for key in parsed:
                 if isinstance(parsed[key], list):
@@ -90,19 +83,19 @@ Beispiel-Antwort:
         return []
         
     except Exception as e:
-        st.error(f"Fehler bei der OpenAI NLU-Anfrage: {e}")
+        st.error(f"Fehler bei der NLU-Extraktion: {e}")
         return []
 
 # ------------------------------------------------------------------------------
-# 3. BENUTZEROBERFLÄCHE
+# 3. BENUTZEROBERFLÄCHE & LOGIK-EVALUATION
 # ------------------------------------------------------------------------------
 st.title("🏛️ Koran-Normativität: KI-NLU & Logik-Inferenz")
-st.caption("Ein hybrides System aus Natural Language Understanding (OpenAI GPT) und formaler Logik (SWI-Prolog)")
+st.caption("Generatives Natural Language Understanding (OpenAI GPT) gekoppelt mit formaler SWI-Prolog Inferenz")
 
 user_input = st.text_area(
     "Geben Sie einen beliebigen Sachverhalt in eigener Sprache ein:",
     height=100,
-    placeholder="Zaid ist Gläubiger und hat sich von Amina getrennt. Sie ist aktuell in der Wartezeit. Er überlegt, sie aus der Wohnung zu weisen..."
+    placeholder="Beispiel: Zaid ist Gläubiger, hat bereits 4 Frauen und möchte eine weitere Ehe schließen..."
 )
 
 if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
@@ -111,23 +104,32 @@ if st.button("⚖️ Sachverhalt via NLU & Prolog auswerten", type="primary"):
     else:
         client = init_openai()
         if client:
-            with st.spinner("1. NLU analysiert Fließtext und extrahiert formale Fakten..."):
+            with st.spinner("1. Generative NLU extrahiert logische Fakten..."):
                 extracted_facts = extract_prolog_facts(client, user_input)
                 
-            st.subheader("1. Extrahierter NLU-Kontext (Fakten)")
+            st.subheader("1. Extrahierter NLU-Kontext (Prolog-Fakten)")
             if extracted_facts:
                 st.json(extracted_facts)
                 
-                # Fakten dynamisch in die Prolog-Engine laden
                 with st.spinner("2. SWI-Prolog rechnet deontische Inferenz durch..."):
-                    prolog.retractall("in_iddah_frist(_, _)")
-                    prolog.retractall("taetigt_transaktion(_, _)")
-                    prolog.retractall("beinhaltet_riba(_)")
-                    prolog.retractall("ist_glaeubig(_)")
+                    # Dynamischen Arbeitsspeicher vor Inferenz bereinigen
+                    for predicate in [
+                        "in_iddah_frist/2", "taetigt_transaktion/2", "beinhaltet_riba/1", 
+                        "ist_glaeubig/1", "anzahl_ehefrauen/2", "beabsichtigt/2"
+                    ]:
+                        try:
+                            prolog.retractall(f"{predicate.split('/')[0]}(_)")
+                        except Exception:
+                            pass
                     
+                    # Extrahierte Fakten in den Arbeitsbereich laden
                     for fact in extracted_facts:
-                        prolog.assertz(fact)
+                        try:
+                            prolog.assertz(fact)
+                        except Exception as pe:
+                            st.caption(f"Hinweis zu Fakt `{fact}`: {pe}")
                     
+                    # Deontische Abfragen ausführen
                     verbote = list(prolog.query("untersagt(X, Action)"))
                     gebote = list(prolog.query("gebietet(X, Action)"))
                     erlaubnisse = list(prolog.query("gestattet(X, Action)"))
