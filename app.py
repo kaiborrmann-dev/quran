@@ -1,13 +1,20 @@
 import streamlit as st
 from regeln import KANON
 
+# Beispielhafte Hinterlegung von Volltexten für die Kernnormen (kann in regeln.py erweitert werden)
+VOLLTEXTE = {
+    "K-001": "„O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... Für euch gibt es in der Vergeltung Leben, o ihr Einsichtigen, auf dass ihr euch theilt.“ (Sure 2:178–179)",
+    "K-003": "„O ihr, die ihr glaubt, vorgeschrieben ist euch das Fasten, so wie es denjenigen vor euch vorgeschrieben worden ist...“ (Sure 2:183)",
+    "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13)"
+}
+
 # ------------------------------------------------------------------------------
 # 1. ARCHITEKTUR & SEITEN-SETUP
 # ------------------------------------------------------------------------------
 st.set_page_config(page_title="Koranischer Normen-Apparat", layout="centered")
 
 st.title("Koranischer Normen-Apparat")
-st.write("Modus-Ponens-Evaluator mit epistemischer Status-Klassifikation.")
+st.write("Evaluator für koranische Normen und epistemischen Status.")
 
 st.markdown("---")
 
@@ -18,13 +25,18 @@ sortierte_ids = sorted(KANON.keys())
 auswahl_id = st.selectbox("Normenkomplex wählen:", sortierte_ids, format_func=lambda x: KANON[x]["titel"])
 regel = KANON[auswahl_id]
 
+# Offenbarungsquelle und kompletter Text im Wortlaut
 st.markdown(f"**Offenbarungsquelle:** {regel['quelle']}")
 
+# Volltext-Ausgabe (falls im Register hinterlegt, sonst Standardhinweis)
+offenbarungs_text = VOLLTEXTE.get(auswahl_id, "Der vollständige Wortlaut dieses Offenbarungstextes wird im Register ergänzt.")
+st.markdown(f"> *{offenbarungs_text}*")
+
 st.markdown("---")
-st.subheader("Normativer Gegenstand")
+st.subheader("Fragestellung")
 st.code(regel["ziel"], language="prolog")
 
-st.subheader("Sachverhalt (Fakten & Sperren)")
+st.subheader("Regeln und Tatbestände")
 
 aktive_fakten = set()
 
@@ -48,7 +60,7 @@ else:
     st.code("% Wissen W ist leer", language="prolog")
 
 # ------------------------------------------------------------------------------
-# 3. INFERENZ & WESSEL-KLASSIFIKATION
+# 3. AUSWERTUNG & WESSEL-KLASSIFIKATION
 # ------------------------------------------------------------------------------
 if st.button("Auswertung starten", type="primary"):
     ziel_term = regel["ziel"]
@@ -72,7 +84,6 @@ if st.button("Auswertung starten", type="primary"):
     w_vdash_a = erfuellt
     w_is_empty = (len(aktive_fakten) == 0)
     
-    # Textliche Ableitung des normativen Inhalts aus dem Ziel-Term (z.B. gebietet/untersagt)
     norm_titel = regel["titel"]
     if "gebietet" in ziel_term:
         norm_text = f"Das Gebot ({norm_titel})"
@@ -93,10 +104,10 @@ if st.button("Auswertung starten", type="primary"):
             befund = f"{norm_text} ist unentscheidbar; die vorhandenen Fakten greifen nicht oder besitzen keinen Bezug zur Regel."
 
     if erfuellt:
-        st.markdown(f"**Ergebnis:** Der Modus Ponens ist **erfüllt**. `{ziel_term}` ist bewiesen.")
+        st.markdown(f"**Prüfung:** Die Fragestellung ist **erfüllt**. `{ziel_term}` ist nachgewiesen.")
     else:
         gruende = "\n".join([f"- {p}" for p in protokoll])
-        st.markdown(f"**Ergebnis:** Der Modus Ponens ist **nicht erfüllt**.\n\nUrsachen:\n{gruende}")
+        st.markdown(f"**Prüfung:** Die Fragestellung ist **nicht erfüllt**.\n\nFehlende Bedingungen:\n{gruende}")
 
     st.markdown("---")
     st.markdown(f"**Epistemischer Status:** `{status_text}`")
