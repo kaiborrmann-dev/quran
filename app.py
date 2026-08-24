@@ -52,10 +52,10 @@ offenbarungs_text = VOLLTEXTE.get(auswahl_id, f"Vollständiger Offenbarungstext 
 st.markdown(f"> *{offenbarungs_text}*")
 
 st.markdown("---")
-st.subheader("Fragestellung & Regelsystem")
+st.subheader("Fragestellung (Norm)")
 st.code(regel["ziel"], language="prolog")
 
-st.subheader("Regeln und Tatbestände")
+st.subheader("Bedingungen zur Erfüllung der Norm")
 
 aktive_fakten = set()
 
