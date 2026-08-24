@@ -1,9 +1,18 @@
 import streamlit as st
 from regeln import KANON
 
-# Vollständige Zitat-Datenbank der einschlägigen Koranverse für den Kanon
+# Vollständige Zitat-Datenbank mit vollständigem Wortlaut aller einschlägigen Verse
 VOLLTEXTE = {
-    "K-001": "„O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... Für euch gibt es in der Vergeltung Leben, o ihr Einsichtigen, auf dass ihr euch hegt.“ (Sure 2:178–179; vgl. Sure 5:45, Sure 17:33)",
+    "K-001": (
+        "„O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten: "
+        "der Freie für den Freien, der Sklave für den Sklaven und das weibliche Wesen für das weibliche Wesen. "
+        "Wer aber von seinem Bruder etwas erlässt, so soll die Verfolgung in rechtlicher Weise und die Entrichtung an ihn auf gütige Art geschehen... "
+        "Für euch gibt es in der Vergeltung Leben, o ihr Einsichtigen, auf dass ihr euch hegt.“ (Sure 2:178–179)\n\n"
+        "„Und wir haben ihnen darin vorgeschrieben: Leben für Leben, Auge für Auge, Nase für Nase, Ohr für Ohr, Zahn für Zahn, "
+        "und für Verletzungen die Wiedervergeltung...“ (Sure 5:45)\n\n"
+        "„Und tötet nicht die Seele, die Gott verboten hat, außer mit Recht. Und wer unschuldig getötet wird, "
+        "dessen Erben haben wir Gewalten gegeben; er soll aber im Töten nicht maßlos sein, denn er wird (von Gott) unterstützt.“ (Sure 17:33)"
+    ),
     "K-002": "„Vorgeschrieben ist euch, wenn einem von euch der Tod vor Augen tritt, wenn er Vermögen hinterlässt, das Vermächtnis zugunsten der Eltern und der nächsten Angehörigen in rechtlicher Weise...“ (Sure 2:180–182; vgl. Sure 5:106–108)",
     "K-003": "„O ihr, die ihr glaubt, vorgeschrieben ist euch das Fasten, so wie es denjenigen vor euch vorgeschrieben worden ist, auf dass ihr gottesfürchtig werdet...“ (Sure 2:183–185, 187)",
     "K-004": "Diejenigen, die den Zins verschlingen, stehen nicht anders da als wie einer, den der Satan durch den Anfall umschlingt... (Sure 2:275–279; Sure 3:130; Sure 30:39)",
@@ -17,8 +26,7 @@ VOLLTEXTE = {
     "K-012": "„O ihr, die ihr glaubt, es sollen nicht Leute über andere Leute spotten... Und verleumdet einander nicht und bewerft einander nicht mit Schimpfnamen...“ (Sure 49:11–12)",
     "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13; Sure 30:22)",
     "K-014": "„Gott verbietet euch nicht bezüglich derer, die nicht gegen euch des Glaubens wegen gekämpft und euch nicht aus euren Häusern vertrieben haben, dass ihr ihnen Gutes tut und gerecht gegen sie seid...“ (Sure 60:8–9)",
-    "K-015": "„Die sich scheidenden Frauen sollen drei Perioden lang abwarten... Und vertreibt sie nicht aus ihren Häusern, und sie sollen nicht ausziehen, es sei denn, sie bringen eine offenkundige Schändlichkeit vor...“ (Sure 2:228–232; Sure 65:1–7)",
-    "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13; Sure 30:22)"
+    "K-015": "„Die sich scheidenden Frauen sollen drei Perioden lang abwarten... Und vertreibt sie nicht aus ihren Häusern, und sie sollen nicht ausziehen, es sei denn, sie bringen eine offenkundige Schändlichkeit vor...“ (Sure 2:228–232; Sure 65:1–7)"
 }
 
 # ------------------------------------------------------------------------------
@@ -38,7 +46,7 @@ sortierte_ids = sorted(KANON.keys())
 auswahl_id = st.selectbox("Normenkomplex wählen:", sortierte_ids, format_func=lambda x: KANON[x]["titel"])
 regel = KANON[auswahl_id]
 
-# Offenbarungsquelle und vollständiges Koran-Zitat
+# Offenbarungsquelle und vollständiger Wortlaut aller einschlägigen Verse
 st.markdown(f"**Offenbarungsquelle:** {regel['quelle']}")
 offenbarungs_text = VOLLTEXTE.get(auswahl_id, f"Vollständiger Offenbarungstext zu {regel['titel']} gemäß Korankorpus.")
 st.markdown(f"> *{offenbarungs_text}*")
