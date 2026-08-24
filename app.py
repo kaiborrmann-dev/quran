@@ -35,7 +35,6 @@ VOLLTEXTE = {
 st.set_page_config(page_title="Koranischer Normen-Apparat", layout="centered")
 
 st.title("Koranischer Normen-Apparat")
-st.write("Evaluator für koranische Normen und epistemischen Status.")
 
 st.markdown("---")
 
@@ -52,7 +51,7 @@ offenbarungs_text = VOLLTEXTE.get(auswahl_id, f"Vollständiger Offenbarungstext 
 st.markdown(f"> *{offenbarungs_text}*")
 
 st.markdown("---")
-st.subheader("Fragestellung (Norm)")
+st.subheader("Norm")
 st.code(regel["ziel"], language="prolog")
 
 st.subheader("Bedingungen zur Erfüllung der Norm")
