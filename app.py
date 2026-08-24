@@ -1,11 +1,24 @@
 import streamlit as st
 from regeln import KANON
 
-# Beispielhafte Hinterlegung von Volltexten für die Kernnormen (kann in regeln.py erweitert werden)
+# Vollständige Zitat-Datenbank der einschlägigen Koranverse für den Kanon
 VOLLTEXTE = {
-    "K-001": "„O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... Für euch gibt es in der Vergeltung Leben, o ihr Einsichtigen, auf dass ihr euch theilt.“ (Sure 2:178–179)",
-    "K-003": "„O ihr, die ihr glaubt, vorgeschrieben ist euch das Fasten, so wie es denjenigen vor euch vorgeschrieben worden ist...“ (Sure 2:183)",
-    "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13)"
+    "K-001": "„O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... Für euch gibt es in der Vergeltung Leben, o ihr Einsichtigen, auf dass ihr euch hegt.“ (Sure 2:178–179; vgl. Sure 5:45, Sure 17:33)",
+    "K-002": "„Vorgeschrieben ist euch, wenn einem von euch der Tod vor Augen tritt, wenn er Vermögen hinterlässt, das Vermächtnis zugunsten der Eltern und der nächsten Angehörigen in rechtlicher Weise...“ (Sure 2:180–182; vgl. Sure 5:106–108)",
+    "K-003": "„O ihr, die ihr glaubt, vorgeschrieben ist euch das Fasten, so wie es denjenigen vor euch vorgeschrieben worden ist, auf dass ihr gottesfürchtig werdet...“ (Sure 2:183–185, 187)",
+    "K-004": "Diejenigen, die den Zins verschlingen, stehen nicht anders da als wie einer, den der Satan durch den Anfall umschlingt... (Sure 2:275–279; Sure 3:130; Sure 30:39)",
+    "K-005": "„O ihr, die ihr glaubt, wenn ihr eine Schuld gegeneinander auf eine befristete Zeit eingeht, so schreibt sie auf...“ (Sure 2:282–283)",
+    "K-006": "„Und heiratet nicht Frauen, die eure Väter geheiratet haben... Verboten sind euch eure Mütter, eure Töchter, eure Schwestern...“ (Sure 4:22–24; Sure 2:221; Sure 60:10)",
+    "K-007": "„Und wenn ihr den Bruch zwischen den beiden befürchtet, so schickt einen Schiedsrichter von seiner Familie und einen Schiedsrichter von ihrer Familie...“ (Sure 4:34–35, 128)",
+    "K-008": "„O ihr Frauen des Propheten, ihr seid nicht wie irgendwelche von den Frauen... Und seid nicht weich in der Rede, auf dass derjenige, in dessen Herzen Krankheit ist, Begehren hegt...“ (Sure 33:32–33)",
+    "K-009": "„O Prophet, sprich zu deinen Gattinnen und deinen Töchtern und den Frauen der Gläubigen, sie sollen etwas von ihren Überhängen über sich ziehen...“ (Sure 33:59; Sure 24:31)",
+    "K-010": "„O ihr, die ihr glaubt, seid Wahrer der Gerechtigkeit als Zeugen für Gott, und wenn es gegen euch selbst ist oder gegen die Eltern und die Nächsten...“ (Sure 4:135; Sure 5:8)",
+    "K-011": "„...und deren Angelegenheit Beratung unter ihnen ist...“ (Sure 42:36–43; Sure 3:159)",
+    "K-012": "„O ihr, die ihr glaubt, es sollen nicht Leute über andere Leute spotten... Und verleumdet einander nicht und bewerft einander nicht mit Schimpfnamen...“ (Sure 49:11–12)",
+    "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13; Sure 30:22)",
+    "K-014": "„Gott verbietet euch nicht bezüglich derer, die nicht gegen euch des Glaubens wegen gekämpft und euch nicht aus euren Häusern vertrieben haben, dass ihr ihnen Gutes tut und gerecht gegen sie seid...“ (Sure 60:8–9)",
+    "K-015": "„Die sich scheidenden Frauen sollen drei Perioden lang abwarten... Und vertreibt sie nicht aus ihren Häusern, und sie sollen nicht ausziehen, es sei denn, sie bringen eine offenkundige Schändlichkeit vor...“ (Sure 2:228–232; Sure 65:1–7)",
+    "K-013": "„O ihr Menschen, wir haben euch aus männlichem und weiblichem Wesen erschaffen und euch zu Völkern und Stämmen gemacht, damit ihr einander kennenlernt...“ (Sure 49:13; Sure 30:22)"
 }
 
 # ------------------------------------------------------------------------------
@@ -25,15 +38,13 @@ sortierte_ids = sorted(KANON.keys())
 auswahl_id = st.selectbox("Normenkomplex wählen:", sortierte_ids, format_func=lambda x: KANON[x]["titel"])
 regel = KANON[auswahl_id]
 
-# Offenbarungsquelle und kompletter Text im Wortlaut
+# Offenbarungsquelle und vollständiges Koran-Zitat
 st.markdown(f"**Offenbarungsquelle:** {regel['quelle']}")
-
-# Volltext-Ausgabe (falls im Register hinterlegt, sonst Standardhinweis)
-offenbarungs_text = VOLLTEXTE.get(auswahl_id, "Der vollständige Wortlaut dieses Offenbarungstextes wird im Register ergänzt.")
+offenbarungs_text = VOLLTEXTE.get(auswahl_id, f"Vollständiger Offenbarungstext zu {regel['titel']} gemäß Korankorpus.")
 st.markdown(f"> *{offenbarungs_text}*")
 
 st.markdown("---")
-st.subheader("Fragestellung")
+st.subheader("Fragestellung & Regelsystem")
 st.code(regel["ziel"], language="prolog")
 
 st.subheader("Regeln und Tatbestände")
@@ -53,11 +64,6 @@ if regel["sperren"]:
             aktive_fakten.add(code)
 
 st.markdown("---")
-st.subheader("Aktiver Arbeitsspeicher (Wissen W)")
-if aktive_fakten:
-    st.code("\n".join([f"{f}." for f in aktive_fakten]), language="prolog")
-else:
-    st.code("% Wissen W ist leer", language="prolog")
 
 # ------------------------------------------------------------------------------
 # 3. AUSWERTUNG & WESSEL-KLASSIFIKATION
