@@ -8,7 +8,8 @@ KANON_REGELN = {
         "struktur_typ": "Exzeptiv",
         "beschreibung_struktur": "Grundregel mit Sperrtatbestand (z.B. formelle Verzeihung)",
         "praemissen": ["vorsatz", "taetigkeit"],
-        "sperren": ["verzeihung", "notwehr"]
+        "sperren": ["verzeihung", "notwehr"],
+        "quelle": "Sure 2:178"
     },
     "K-002": {
         "titel": "Beispiel: Verträge und Fristen",
@@ -17,7 +18,8 @@ KANON_REGELN = {
         "struktur_typ": "Kumulativ",
         "beschreibung_struktur": "Mehrere Bedingungen müssen gleichzeitig vorliegen (A ^ B ^ C)",
         "praemissen": ["schriftform", "zeugen", "befristung"],
-        "sperren": []
+        "sperren": [],
+        "quelle": "Sure 2:282"
     },
     "K-003": {
         "titel": "Beispiel: Allgemeine Handlungsfreiheit / Erlaubnis",
@@ -26,11 +28,12 @@ KANON_REGELN = {
         "struktur_typ": "Einfach",
         "beschreibung_struktur": "Direkte Prämisse ohne komplexe Verzweigungen",
         "praemissen": ["grundvoraussetzung"],
-        "sperren": []
+        "sperren": [],
+        "quelle": "Sure 2:29"
     }
 }
 
-# Falls deine app.py das Dictionary als 'KANON' importiert:
+# Alias für den Import in Streamlit
 KANON = KANON_REGELN
 
 def evaluiere_norm(norm_id, sachverhalt_fakten, sachverhalt_sperren):
