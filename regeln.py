@@ -1,59 +1,73 @@
-# app.py - Streamlit Benutzeroberfläche für den koranischen Normen-Apparat
+# regeln.py - Bereinigte Architektur nach deontischer Reduktion und Struktur-Typen
 
-import streamlit as st
-from regeln import KANON, evaluiere_norm
+KANON_REGELN = {
+    "K-001": {
+        "titel": "Beispiel: Tötung und Vergeltung (Kisas)",
+        "deontik": "Verbot",
+        "operator_formel": "O(¬A)",
+        "struktur_typ": "Exzeptiv",
+        "beschreibung_struktur": "Grundregel mit Sperrtatbestand (z.B. formelle Verzeihung)",
+        "praemissen": ["vorsatz", "taetigkeit"],
+        "sperren": ["verzeihung", "notwehr"],
+        "quelle": "Sure 2:178",
+        "text": "O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... (Sure 2:178)"
+    },
+    "K-002": {
+        "titel": "Beispiel: Verträge und Fristen",
+        "deontik": "Gebot",
+        "operator_formel": "O(A)",
+        "struktur_typ": "Kumulativ",
+        "beschreibung_struktur": "Mehrere Bedingungen müssen gleichzeitig vorliegen (A ^ B ^ C)",
+        "praemissen": ["schriftform", "zeugen", "befristung"],
+        "sperren": [],
+        "quelle": "Sure 2:282",
+        "text": "Wenn ihr eine Schuld aufeinander nehmt auf eine bestimmte Frist, so schreibt sie auf... (Sure 2:282)"
+    },
+    "K-003": {
+        "titel": "Beispiel: Allgemeine Handlungsfreiheit / Erlaubnis",
+        "deontik": "Erlaubnis",
+        "operator_formel": "¬O(¬A)",
+        "struktur_typ": "Einfach",
+        "beschreibung_struktur": "Direkte Prämisse ohne komplexe Verzweigungen",
+        "praemissen": ["grundvoraussetzung"],
+        "sperren": [],
+        "quelle": "Sure 2:29",
+        "text": "Er ist es, der für euch alles, was auf der Erde ist, erschaffen hat... (Sure 2:29)"
+    }
+}
 
-st.set_page_config(page_title="Koranischer Normen-Apparat", layout="centered")
+# Alias für den Import in Streamlit
+KANON = KANON_REGELN
 
-st.title("Koranischer Normen-Apparat")
-st.markdown("Systemische Analyse nach deontischer Reduktion und logischer Struktur.")
-
-st.markdown("---")
-
-# Auswahl der Norm aus dem Kanon
-norm_optionen = {v["titel"]: k for k, v in KANON.items()}
-auswahl_titel = st.selectbox("Normenkomplex wählen:", list(norm_optionen.keys()))
-norm_id = norm_optionen[auswahl_titel]
-regel = KANON[norm_id]
-
-# Anzeige des Quelltextes und der Metadaten
-st.markdown(f"**Offenbarungsquelle:** {regel.get('quelle', 'Koran')}")
-st.markdown(f"> *{regel.get('text', '')}*")
-
-st.subheader("Normen-Profil")
-st.markdown(f"**Deontischer Vektor:** {regel['deontik']} (`{regel['operator_formel']}`)")
-st.markdown(f"**Struktur-Typ:** {regel['struktur_typ']} — *{regel['beschreibung_struktur']}*")
-
-st.markdown("---")
-
-# Interaktive Eingabe für den Sachverhalt
-st.subheader("Sachverhalt prüfen")
-
-sachverhalt_fakten = []
-sachverhalt_sperren = []
-
-if regel["praemissen"]:
-    st.markdown("##### Vorliegende Tatbestände (Prämissen):")
-    for p in regel["praemissen"]:
-        if st.checkbox(f"Tatbestand erfüllt: **{p}**", key=f"p_{p}"):
-            sachverhalt_fakten.append(p)
-
-if regel["sperren"]:
-    st.markdown("##### Greifende Sperrtatbestände (Ausnahmen):")
-    for s in regel["sperren"]:
-        if st.checkbox(f"Sperre aktiv: **{s}**", key=f"s_{s}"):
-            sachverhalt_sperren.append(s)
-
-st.markdown("---")
-
-# Auswertung starten
-if st.button("Norm evaluieren"):
-    ergebnis = evaluiere_norm(norm_id, sachverhalt_fakten, sachverhalt_sperren)
+def evaluiere_norm(norm_id, sachverhalt_fakten, sachverhalt_sperren):
+    norm = KANON_REGELN.get(norm_id)
+    if not norm:
+        return {"ergebnis": False, "grund": "Norm nicht gefunden"}
     
-    st.subheader("Ergebnis der Evaluation")
-    st.write(f"**Status:** {ergebnis['status']}")
+    struktur = norm["struktur_typ"]
     
-    if ergebnis["ergebnis"]:
-        st.success("Das Gebot/Verbot ist im aktuellen Sachverhalt bindend.")
+    if struktur == "Exzeptiv":
+        for sperre in norm["sperren"]:
+            if sperre in sachverhalt_sperren:
+                return {
+                    "norm": norm_id,
+                    "deontik": norm["deontik"],
+                    "struktur": struktur,
+                    "ergebnis": False,
+                    "status": "Blockiert durch Sperrtatbestand"
+                }
+                
+    if struktur == "Kumulativ":
+        erfüllt = all(p in sachverhalt_fakten for p in norm["praemissen"])
+    elif struktur in ["Einfach", "Exzeptiv"]:
+        erfüllt = all(p in sachverhalt_fakten for p in norm["praemissen"]) if norm["praemissen"] else True
     else:
-        st.error("Die Norm greift im aktuellen Sachverhalt nicht (oder ist blockiert).")
+        erfüllt = False
+        
+    return {
+        "norm": norm_id,
+        "deontik": norm["deontik"],
+        "struktur": struktur,
+        "ergebnis": erfüllt,
+        "status": "Norm greift (Aktiv)" if erfüllt else "Voraussetzungen nicht erfüllt"
+    }
