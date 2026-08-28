@@ -9,7 +9,8 @@ KANON_REGELN = {
         "beschreibung_struktur": "Grundregel mit Sperrtatbestand (z.B. formelle Verzeihung)",
         "praemissen": ["vorsatz", "taetigkeit"],
         "sperren": ["verzeihung", "notwehr"],
-        "quelle": "Sure 2:178"
+        "quelle": "Sure 2:178",
+        "text": "O ihr, die ihr glaubt, vorgeschrieben ist euch die Vergeltung für die Getöteten... (Sure 2:178)"
     },
     "K-002": {
         "titel": "Beispiel: Verträge und Fristen",
@@ -19,7 +20,8 @@ KANON_REGELN = {
         "beschreibung_struktur": "Mehrere Bedingungen müssen gleichzeitig vorliegen (A ^ B ^ C)",
         "praemissen": ["schriftform", "zeugen", "befristung"],
         "sperren": [],
-        "quelle": "Sure 2:282"
+        "quelle": "Sure 2:282",
+        "text": "Wenn ihr eine Schuld aufeinander nehmt auf eine bestimmte Frist, so schreibt sie auf... (Sure 2:282)"
     },
     "K-003": {
         "titel": "Beispiel: Allgemeine Handlungsfreiheit / Erlaubnis",
@@ -29,7 +31,8 @@ KANON_REGELN = {
         "beschreibung_struktur": "Direkte Prämisse ohne komplexe Verzweigungen",
         "praemissen": ["grundvoraussetzung"],
         "sperren": [],
-        "quelle": "Sure 2:29"
+        "quelle": "Sure 2:29",
+        "text": "Er ist es, der für euch alles, was auf der Erde ist, erschaffen hat... (Sure 2:29)"
     }
 }
 
